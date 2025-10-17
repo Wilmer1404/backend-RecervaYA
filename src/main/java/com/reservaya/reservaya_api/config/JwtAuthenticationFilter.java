@@ -29,6 +29,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletRequest request,
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain) throws ServletException, IOException {
+        
+        // Skip JWT processing for OPTIONS requests (CORS preflight)
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+        
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
         final String userEmail;
@@ -38,19 +45,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        jwt = authHeader.substring(7);
-        userEmail = jwtService.extractUsername(jwt);
+        try {
+            jwt = authHeader.substring(7);
+            userEmail = jwtService.extractUsername(jwt);
 
-        if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
-            if (jwtService.isTokenValid(jwt, userDetails)) {
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        userDetails.getAuthorities());
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+            if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                try {
+                    UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
+                    if (jwtService.isTokenValid(jwt, userDetails)) {
+                        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities());
+                        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(authToken);
+                    }
+                } catch (Exception e) {
+                    // Si el usuario no existe o hay cualquier error con el token, simplemente continuar
+                    // sin autenticar al usuario. Esto permite que las rutas públicas funcionen normalmente.
+                    System.out.println("⚠️ Token inválido o usuario no encontrado: " + e.getMessage());
+                }
             }
+        } catch (Exception e) {
+            // Si hay cualquier error procesando el token, simplemente continuar
+            System.out.println("⚠️ Error procesando JWT: " + e.getMessage());
         }
         filterChain.doFilter(request, response);
     }

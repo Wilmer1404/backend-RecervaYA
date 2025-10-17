@@ -21,11 +21,17 @@ public class AuthController {
 
     @PostMapping("/register")
     public User registerUser(@RequestBody User user) {
-        return authService.register(user);
+        System.out.println("📝 Registration attempt for email: " + user.getEmail());
+        User registeredUser = authService.register(user);
+        System.out.println("✅ User registered successfully with ID: " + registeredUser.getId());
+        return registeredUser;
     }
 
     @PostMapping("/login")
     public AuthResponse loginUser(@RequestBody LoginRequest request) {
-        return authService.login(request);
+        System.out.println("🔐 Login attempt for email: " + request.getEmail());
+        AuthResponse response = authService.login(request);
+        System.out.println("✅ Login successful, token generated");
+        return response;
     }
 }
