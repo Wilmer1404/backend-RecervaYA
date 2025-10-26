@@ -4,7 +4,9 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode; 
 import lombok.NoArgsConstructor;
+import lombok.ToString; 
 import java.time.LocalDateTime;
 
 @Entity
@@ -19,14 +21,16 @@ public class Reservation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Relación: Muchas reservaciones pertenecen a Un usuario
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY) 
     @JoinColumn(name = "user_id", nullable = false)
+    @ToString.Exclude 
+    @EqualsAndHashCode.Exclude 
     private User user;
 
-    // Relación: Muchas reservaciones apuntan a Un espacio
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY) 
     @JoinColumn(name = "space_id", nullable = false)
+    @ToString.Exclude 
+    @EqualsAndHashCode.Exclude 
     private Space space;
 
     @Column(nullable = false)
@@ -35,5 +39,11 @@ public class Reservation {
     @Column(nullable = false)
     private LocalDateTime endTime;
 
-    private String status; // Ej: "CONFIRMED", "CANCELLED"
+    @Column(nullable = false) 
+    private String status; 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "institution_id", nullable = false)
+    @ToString.Exclude 
+    @EqualsAndHashCode.Exclude 
+    private Institution institution;
 }

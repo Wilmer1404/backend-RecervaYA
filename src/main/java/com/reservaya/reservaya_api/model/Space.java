@@ -1,25 +1,44 @@
 package com.reservaya.reservaya_api.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
-@Entity // Le dice a JPA que esta clase es una tabla en la base de datos
-@Table(name = "spaces") // Opcional: especifica el nombre de la tabla
-@Data // Lombok: genera automáticamente getters, setters, toString, etc.
-@NoArgsConstructor // Lombok: genera un constructor sin argumentos, requerido por JPA
+@Entity
+@Table(name = "spaces")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Space {
 
-    @Id // Marca este campo como la clave primaria (Primary Key)
-    @GeneratedValue(strategy = GenerationType.IDENTITY) // Le dice a Postgres que genere el ID automáticamente
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String name;
+
+    @Column(nullable = false)
     private String type; // Ej: "sports", "study", "lab"
+
+    @Column(nullable = false)
     private int capacity;
+
     private String image; // Podría ser un emoji o una URL a una imagen
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "institution_id", nullable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Institution institution;
+
+    // --- GETTER EXPLÍCITO ---
+    public Long getId() {
+        return id;
+    }
 }

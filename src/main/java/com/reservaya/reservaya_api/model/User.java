@@ -5,7 +5,9 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode; 
 import lombok.NoArgsConstructor;
+import lombok.ToString; 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -14,30 +16,35 @@ import java.util.Collection;
 import java.util.List;
 
 @Entity
-@Table(name = "users") // Usamos "users" porque "user" es una palabra reservada en PostgreSQL
+@Table(name = "users") 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder // Patrón de diseño útil para construir objetos
+@Builder 
 public class User implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false) // La columna no puede ser nula
+    @Column(nullable = false) 
     private String name;
 
-    @Column(unique = true, nullable = false) // El email debe ser único y no nulo
+    @Column(unique = true, nullable = false) 
     private String email;
 
     @Column(nullable = false)
     private String password;
 
-    @Enumerated(EnumType.STRING) // Guarda el rol como texto ("USER", "ADMIN") en la BD
+    @Enumerated(EnumType.STRING) 
     private Role role;
 
-    // --- Métodos de la interfaz UserDetails de Spring Security ---
+    @ManyToOne(fetch = FetchType.LAZY) 
+    @JoinColumn(name = "institution_id", nullable = false)
+    @ToString.Exclude 
+    @EqualsAndHashCode.Exclude 
+    private Institution institution;
+
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -46,13 +53,12 @@ public class User implements UserDetails {
 
     @Override
     public String getUsername() {
-        // Usaremos el email como nombre de usuario para la autenticación
         return this.email;
     }
 
     @Override
     public boolean isAccountNonExpired() {
-        return true;
+        return true; 
     }
 
     @Override
