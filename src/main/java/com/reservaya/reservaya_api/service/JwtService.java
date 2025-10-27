@@ -18,15 +18,31 @@ import java.util.function.Function;
 @Service
 public class JwtService {
 
-    // Inyectaremos la clave secreta desde application.properties
     @Value("${security.jwt.secret-key}")
     private String secretKey;
 
     @Value("${security.jwt.expiration-time}")
     private long jwtExpiration;
 
+    // --- Métodos de Extracción ---
+
     public String extractUsername(String token) {
-        return extractClaim(token, Claims::getSubject);
+        return extractClaim(token, Claims::getSubject); // El subject es el email (username)
+    }
+
+    // NUEVO: Extraer institutionId
+    public Long extractInstitutionId(String token) {
+        return extractClaim(token, claims -> claims.get("institutionId", Long.class));
+    }
+
+    // NUEVO: Extraer userId
+    public Long extractUserId(String token) {
+         return extractClaim(token, claims -> claims.get("userId", Long.class));
+    }
+
+    // NUEVO: Extraer rol
+    public String extractRole(String token) {
+        return extractClaim(token, claims -> claims.get("role", String.class));
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
@@ -34,10 +50,23 @@ public class JwtService {
         return claimsResolver.apply(claims);
     }
 
+    private Claims extractAllClaims(String token) {
+        return Jwts
+                .parserBuilder()
+                .setSigningKey(getSignInKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+    }
+
+    // --- Métodos de Generación ---
+
     public String generateToken(UserDetails userDetails) {
+        // Por defecto, generar sin claims extra (aunque podríamos añadir los básicos aquí)
         return generateToken(new HashMap<>(), userDetails);
     }
 
+    // Este método ya acepta extraClaims, así que está listo para usarse desde AuthService
     public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
         return buildToken(extraClaims, userDetails, jwtExpiration);
     }
@@ -49,16 +78,18 @@ public class JwtService {
     ) {
         return Jwts
                 .builder()
-                .setClaims(extraClaims)
-                .setSubject(userDetails.getUsername())
+                .setClaims(extraClaims) // Incluir los claims personalizados
+                .setSubject(userDetails.getUsername()) // Email del usuario
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSignInKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
+
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
+        // Podríamos añadir validación de otros claims si fuera necesario
         return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
     }
 
@@ -70,14 +101,6 @@ public class JwtService {
         return extractClaim(token, Claims::getExpiration);
     }
 
-    private Claims extractAllClaims(String token) {
-        return Jwts
-                .parserBuilder()
-                .setSigningKey(getSignInKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-    }
 
     private Key getSignInKey() {
         byte[] keyBytes = Decoders.BASE64.decode(secretKey);
