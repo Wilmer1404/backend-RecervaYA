@@ -21,31 +21,19 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<User> registerInstitutionAndAdmin(@RequestBody RegisterRequest request) {
-        System.out.println(" Registration attempt for institution: " + request.getInstitutionName() + " with admin email: " + request.getAdminEmail());
         try {
             User registeredUser = authService.register(request);
-            System.out.println(" Institution and Admin User registered successfully with User ID: " + registeredUser.getId());
-            // Devolver 200 OK con el usuario creado en el cuerpo
             return ResponseEntity.ok(registeredUser);
         } catch (IllegalStateException e) {
-             System.err.println(" Registration failed: " + e.getMessage());
-             // Devolver 409 Conflict si el nombre/email ya existe
-             // Podríamos usar GlobalExceptionHandler también, pero esto es más específico aquí
-             return ResponseEntity.status(409).body(null); // O devolver un DTO de error
+            return ResponseEntity.status(409).body(null);
         } catch (Exception e) {
-            System.err.println(" Registration failed with unexpected error: " + e.getMessage());
-            // Devolver 500 Internal Server Error para otros errores
             return ResponseEntity.status(500).body(null);
         }
     }
 
-    // El endpoint de login ya devuelve AuthResponse, así que está bien
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> loginUser(@RequestBody LoginRequest request) {
-        System.out.println(" Login attempt for email: " + request.getEmail());
-
         AuthResponse response = authService.login(request);
-        System.out.println(" Login successful for user ID: " + response.getUserId() + " in institution ID: " + response.getInstitutionId());
         return ResponseEntity.ok(response);
     }
 }

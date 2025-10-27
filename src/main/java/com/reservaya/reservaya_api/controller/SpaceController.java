@@ -1,61 +1,66 @@
 package com.reservaya.reservaya_api.controller;
 
 import com.reservaya.reservaya_api.model.Space;
-import com.reservaya.reservaya_api.model.User; 
+import com.reservaya.reservaya_api.model.User;
 import com.reservaya.reservaya_api.service.SpaceService;
-import lombok.RequiredArgsConstructor; 
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus; // Importar HttpStatus
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal; 
+import org.springframework.security.access.prepost.PreAuthorize; // Importar para permisos
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/spaces")
-@RequiredArgsConstructor 
+@RequiredArgsConstructor
 public class SpaceController {
 
     private final SpaceService spaceService;
 
-
     @GetMapping
     public List<Space> getAllSpaces(@AuthenticationPrincipal User user) {
-        // La lógica para filtrar por user.getInstitution().getId() se añadirá después
-        return spaceService.getAllSpaces(); 
+        Long institutionId = user.getInstitution().getId();
+        return spaceService.getAllSpacesByInstitution(institutionId);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<Space> getSpaceById(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        // La lógica para verificar que el espacio pertenece a user.getInstitution() se añadirá después
-        return spaceService.getSpaceById(id)
+        Long institutionId = user.getInstitution().getId();
+        return spaceService.getSpaceByIdAndInstitution(id, institutionId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    public ResponseEntity<Space> createSpace(@RequestBody Space space, @AuthenticationPrincipal User user) {
-        // La lógica para asignar user.getInstitution() al 'space' se añadirá después
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<Space> createSpace(@RequestBody Space space, @AuthenticationPrincipal User adminUser) {
+        Long institutionId = adminUser.getInstitution().getId();
         try {
-            Space createdSpace = spaceService.createSpace(space); 
-            return ResponseEntity.ok(createdSpace);
+            Space createdSpace = spaceService.createSpace(space, institutionId);
+            return ResponseEntity.status(HttpStatus.CREATED).body(createdSpace);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
         } catch (Exception e) {
-            // Manejo básico de errores, se puede mejorar
-            return ResponseEntity.status(500).build();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Space> updateSpace(@PathVariable Long id, @RequestBody Space spaceDetails, @AuthenticationPrincipal User user) {
-        // La lógica para verificar pertenencia a la institución y actualizar se añadirá después
-        return spaceService.updateSpace(id, spaceDetails)
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<Space> updateSpace(@PathVariable Long id, @RequestBody Space spaceDetails, @AuthenticationPrincipal User adminUser) {
+        Long institutionId = adminUser.getInstitution().getId();
+        return spaceService.updateSpace(id, spaceDetails, institutionId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteSpace(@PathVariable Long id, @AuthenticationPrincipal User user) {
-         // La lógica para verificar pertenencia a la institución antes de borrar se añadirá después
-        if (spaceService.deleteSpace(id)) { // Temporalmente borra sin verificar institución
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<Void> deleteSpace(@PathVariable Long id, @AuthenticationPrincipal User adminUser) {
+        Long institutionId = adminUser.getInstitution().getId();
+        if (spaceService.deleteSpace(id, institutionId)) {
             return ResponseEntity.noContent().build();
         } else {
             return ResponseEntity.notFound().build();

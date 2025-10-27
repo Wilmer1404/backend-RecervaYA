@@ -62,7 +62,7 @@ public class JwtService {
     // --- Métodos de Generación ---
 
     public String generateToken(UserDetails userDetails) {
-        // Por defecto, generar sin claims extra (aunque podríamos añadir los básicos aquí)
+
         return generateToken(new HashMap<>(), userDetails);
     }
 
@@ -89,7 +89,7 @@ public class JwtService {
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
-        // Podríamos añadir validación de otros claims si fuera necesario
+
         return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
     }
 

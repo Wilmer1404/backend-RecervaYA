@@ -26,10 +26,10 @@ public class Institution {
     private String name;
 
     @Column(nullable = false)
-    private String type; // Ej: "university", "school"
+    private String type;
 
     @Column(unique = true)
-    private String emailDomain; // Ej: "utp.edu.pe", "upao.edu.pe"
+    private String emailDomain;
 
     // --- Relaciones bidireccionales ---
     @OneToMany(mappedBy = "institution", cascade = CascadeType.ALL, fetch = FetchType.LAZY)

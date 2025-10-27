@@ -24,21 +24,16 @@ public class Space {
     private String name;
 
     @Column(nullable = false)
-    private String type; // Ej: "sports", "study", "lab"
+    private String type;
 
     @Column(nullable = false)
     private int capacity;
 
-    private String image; // Podría ser un emoji o una URL a una imagen
+    private String image;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "institution_id", nullable = false)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Institution institution;
-
-    // --- GETTER EXPLÍCITO ---
-    public Long getId() {
-        return id;
-    }
 }

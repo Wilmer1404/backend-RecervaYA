@@ -77,9 +77,7 @@ public class AuthService {
                     )
             );
         } catch (AuthenticationException e) {
-            // Podrías loggear el intento fallido aquí si quieres
-            System.err.println("Error de autenticación para " + request.getEmail() + ": " + e.getMessage());
-            throw e; // Relanzar para que GlobalExceptionHandler lo maneje
+            throw e;
         }
 
 
