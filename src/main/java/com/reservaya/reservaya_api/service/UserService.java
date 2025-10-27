@@ -1,7 +1,7 @@
 package com.reservaya.reservaya_api.service;
 
 import com.reservaya.reservaya_api.dto.CreateUserRequest;
-import com.reservaya.reservaya_api.dto.UpdateUserRequest; // Necesitaremos crear este DTO
+import com.reservaya.reservaya_api.dto.UpdateUserRequest;
 import com.reservaya.reservaya_api.dto.UserDTO;
 import com.reservaya.reservaya_api.model.Institution;
 import com.reservaya.reservaya_api.model.User;
@@ -12,7 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils; // Para verificar strings no vacíos
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -37,53 +37,78 @@ public class UserService {
 
     @Transactional
     public UserDTO createUser(CreateUserRequest request, Long institutionId) {
-        // Validación de email existente (global)
         userRepository.findByEmail(request.getEmail()).ifPresent(u -> {
             throw new IllegalStateException("El correo electrónico ya está registrado: " + request.getEmail());
         });
 
-        // Obtener la institución
         Institution institution = institutionRepository.findById(institutionId)
                 .orElseThrow(() -> new IllegalArgumentException("Institución no encontrada con ID: " + institutionId));
 
-        // Crear el nuevo usuario
         User newUser = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .role(Role.USER) // Rol USER por defecto al crear desde admin
+                .role(Role.USER)
                 .institution(institution)
                 .build();
 
-        // Guardar y mapear a DTO
         User savedUser = userRepository.save(newUser);
         return mapToUserDTO(savedUser);
     }
+    
+    // --- NUEVO MÉTODO: Cambiar contraseña propia ---
+    @Transactional
+    public void changeUserPassword(Long userId, String oldPassword, String newPassword) {
+        // (Opcional) Validación de fortaleza de la nueva contraseña
+        if (!isPasswordStrong(newPassword)) {
+            throw new IllegalArgumentException("La nueva contraseña no es lo suficientemente fuerte. Debe tener al menos 8 caracteres, incluir mayúsculas, minúsculas y números.");
+        }
+        
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado.")); // No debería pasar si está autenticado
 
-    // --- NUEVOS MÉTODOS (NECESARIOS PARA GESTIÓN ADMIN) ---
+        // Verificar la contraseña antigua
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw new IllegalArgumentException("La contraseña antigua es incorrecta.");
+        }
+
+        // Codificar y guardar la nueva contraseña
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+    
+    // (Helper opcional para validación de contraseña)
+    private boolean isPasswordStrong(String password) {
+        if (password == null || password.length() < 8) {
+            return false;
+        }
+        boolean hasUpper = false;
+        boolean hasLower = false;
+        boolean hasDigit = false;
+        for (char c : password.toCharArray()) {
+            if (Character.isUpperCase(c)) hasUpper = true;
+            if (Character.isLowerCase(c)) hasLower = true;
+            if (Character.isDigit(c)) hasDigit = true;
+        }
+        return hasUpper && hasLower && hasDigit;
+    }
+
 
     @Transactional
     public Optional<UserDTO> updateUser(Long userIdToUpdate, UpdateUserRequest request, Long adminInstitutionId) {
-        // Busca al usuario asegurándose que pertenece a la institución del admin
         return userRepository.findById(userIdToUpdate)
-                .filter(user -> user.getInstitution().getId().equals(adminInstitutionId)) // Validar pertenencia
+                .filter(user -> user.getInstitution().getId().equals(adminInstitutionId))
                 .map(user -> {
-                    // Actualizar campos permitidos (ej. nombre, rol si se permite cambiarlo)
-                    if (StringUtils.hasText(request.getName())) { // Solo actualiza si el nombre no es nulo/vacío
+                    if (StringUtils.hasText(request.getName())) {
                         user.setName(request.getName());
                     }
-                    if (request.getRole() != null) { // Si se permite cambiar el rol
-                       // ¡Cuidado! No permitir cambiar a ADMIN o validar lógicas
-                       if (request.getRole() == Role.USER) { // Ejemplo: solo permitir asignar USER
+                    if (request.getRole() != null) {
+                       if (request.getRole() == Role.USER) {
                             user.setRole(request.getRole());
                        } else {
-                           // Podrías lanzar una excepción si intentan asignar ADMIN
                            System.err.println("Intento de asignar rol no permitido: " + request.getRole());
                        }
                     }
-                    // Podrías añadir lógica para cambiar email si es necesario (requiere validación de unicidad)
-                    // NO actualizamos la contraseña aquí (se haría en otro método/endpoint)
-
                     User updatedUser = userRepository.save(user);
                     return mapToUserDTO(updatedUser);
                 });
@@ -91,28 +116,21 @@ public class UserService {
 
     @Transactional
     public boolean deleteUser(Long userIdToDelete, Long adminInstitutionId) {
-        // Busca al usuario asegurándose que pertenece a la institución del admin
         Optional<User> userOptional = userRepository.findById(userIdToDelete)
-                .filter(user -> user.getInstitution().getId().equals(adminInstitutionId)); // Validar pertenencia
+                .filter(user -> user.getInstitution().getId().equals(adminInstitutionId));
 
         if (userOptional.isPresent()) {
             User user = userOptional.get();
-            // ¡IMPORTANTE! No permitir que un admin se borre a sí mismo
-            // O que borre al último admin de la institución.
             if (user.getRole() == Role.ADMIN) {
                  System.err.println("Intento de borrar a un usuario ADMIN (ID: " + userIdToDelete + ") - Operación denegada.");
-                 return false; // O lanzar excepción
+                 return false;
             }
-
-            // Aquí deberías añadir lógica para verificar si el usuario tiene dependencias
-            // (ej. reservas activas) antes de borrarlo. Podrías anonimizarlo en lugar de borrar.
-            // Por ahora, lo borramos directamente:
             userRepository.deleteById(userIdToDelete);
             System.out.println("User ID " + userIdToDelete + " deleted successfully.");
             return true;
         } else {
              System.err.println("User ID " + userIdToDelete + " not found or does not belong to institution ID " + adminInstitutionId);
-            return false; // No encontrado o no pertenece a la institución
+            return false;
         }
     }
 

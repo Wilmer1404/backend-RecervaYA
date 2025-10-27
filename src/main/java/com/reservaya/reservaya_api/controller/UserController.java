@@ -1,5 +1,6 @@
 package com.reservaya.reservaya_api.controller;
 
+import com.reservaya.reservaya_api.dto.ChangePasswordRequest; // Importar nuevo DTO
 import com.reservaya.reservaya_api.dto.CreateUserRequest;
 import com.reservaya.reservaya_api.dto.UpdateUserRequest;
 import com.reservaya.reservaya_api.dto.UserDTO;
@@ -10,9 +11,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*; 
+import org.springframework.web.bind.annotation.*;
 import java.util.List;
-import java.util.Map; // Para mensajes de error
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -29,8 +30,9 @@ public class UserController {
         return userService.getAllUsersByInstitution(institutionId);
     }
 
-    // Endpoint existente: Obtener perfil propio
+    // Endpoint existente: Obtener perfil propio (Asegurado para ambos roles)
     @GetMapping("/me")
+    @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('USER')")
     public ResponseEntity<UserDTO> getCurrentUserProfile(@AuthenticationPrincipal User currentUser) {
          System.out.println("API GET /users/me: User ID " + currentUser.getId() + " fetching own profile for institution ID: " + currentUser.getInstitution().getId());
          UserDTO userDto = UserDTO.builder()
@@ -41,6 +43,26 @@ public class UserController {
                  .build();
         return ResponseEntity.ok(userDto);
     }
+
+    // --- NUEVO ENDPOINT: Cambiar contraseña propia ---
+    @PostMapping("/me/change-password")
+    @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('USER')")
+    public ResponseEntity<?> changeMyPassword(@RequestBody ChangePasswordRequest request, @AuthenticationPrincipal User currentUser) {
+        try {
+            userService.changeUserPassword(
+                currentUser.getId(), 
+                request.getOldPassword(), 
+                request.getNewPassword()
+            );
+            return ResponseEntity.ok(Map.of("message", "Contraseña actualizada exitosamente."));
+        } catch (IllegalArgumentException e) {
+             // Contraseña antigua incorrecta o nueva contraseña inválida
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Error interno al cambiar la contraseña."));
+        }
+    }
+
 
     // Endpoint existente: Crear un nuevo usuario (solo ADMIN)
     @PostMapping
@@ -66,8 +88,6 @@ public class UserController {
         }
     }
 
-    // --- NUEVO ENDPOINT: Actualizar Usuario ---
-    // Solo ADMIN puede actualizar usuarios de su institución
     @PutMapping("/{userId}")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> updateUser(@PathVariable Long userId, @RequestBody UpdateUserRequest request, @AuthenticationPrincipal User adminUser) {
@@ -78,48 +98,42 @@ public class UserController {
              return userService.updateUser(userId, request, adminInstitutionId)
                 .map(updatedUserDTO -> {
                     System.out.println(" User ID " + userId + " updated successfully.");
-                    return ResponseEntity.ok(updatedUserDTO); // 200 OK con el DTO actualizado
+                    return ResponseEntity.ok(updatedUserDTO);
                 })
                 .orElseGet(() -> {
                     System.err.println(" Update failed: User ID " + userId + " not found or doesn't belong to institution ID " + adminInstitutionId);
-                    // Devolver 404 Not Found si el usuario no existe o no pertenece a la institución
                     return ResponseEntity.notFound().build();
                 });
-        } catch (Exception e) { // Capturar otras posibles excepciones del servicio
+        } catch (Exception e) {
              System.err.println(" User update failed with unexpected error: " + e.getMessage());
              e.printStackTrace();
              return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Error interno al actualizar el usuario."));
         }
     }
 
-    // --- NUEVO ENDPOINT: Eliminar Usuario ---
-    // Solo ADMIN puede eliminar usuarios (que no sean ADMIN) de su institución
     @DeleteMapping("/{userId}")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<?> deleteUser(@PathVariable Long userId, @AuthenticationPrincipal User adminUser) {
         Long adminInstitutionId = adminUser.getInstitution().getId();
         System.out.println("API DELETE /users/" + userId + ": Admin User ID " + adminUser.getId() + " attempting to delete user for institution ID: " + adminInstitutionId);
 
-        // Prevenir que el admin se borre a sí mismo
         if (userId.equals(adminUser.getId())) {
              System.err.println(" Delete failed: Admin User ID " + adminUser.getId() + " cannot delete themselves.");
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Un administrador no puede eliminarse a sí mismo.")); // 403 Forbidden
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Un administrador no puede eliminarse a sí mismo."));
         }
 
         try {
             boolean deleted = userService.deleteUser(userId, adminInstitutionId);
             if (deleted) {
                 System.out.println(" User ID " + userId + " deleted successfully.");
-                return ResponseEntity.noContent().build(); // 204 No Content
+                return ResponseEntity.noContent().build();
             } else {
                  System.err.println(" Delete failed: User ID " + userId + " not found, doesn't belong to institution ID " + adminInstitutionId + ", or is an ADMIN.");
-                // Podría ser 404 Not Found o 403 Forbidden si intentó borrar otro admin
-                return ResponseEntity.notFound().build(); // 404 es más simple
+                return ResponseEntity.notFound().build();
             }
-        } catch (Exception e) { // Capturar otras posibles excepciones del servicio (ej. dependencias)
+        } catch (Exception e) {
              System.err.println(" User deletion failed with unexpected error: " + e.getMessage());
              e.printStackTrace();
-             // Podría ser un 409 Conflict si hay dependencias (reservas, etc.)
              return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Error interno al eliminar el usuario. Verifique dependencias."));
         }
     }
