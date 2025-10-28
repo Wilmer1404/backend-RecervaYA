@@ -1,5 +1,6 @@
 package com.reservaya.reservaya_api.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.reservaya.reservaya_api.model.enums.Role;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -34,6 +35,7 @@ public class User implements UserDetails {
     private String email;
 
     @Column(nullable = false)
+    @JsonIgnore
     private String password;
 
     @Enumerated(EnumType.STRING)
