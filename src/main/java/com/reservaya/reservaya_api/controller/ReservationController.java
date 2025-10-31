@@ -15,13 +15,33 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/reservations")
+@RequestMapping("/api/v1/reservations") // Ruta base
 @RequiredArgsConstructor
 public class ReservationController {
 
     private final ReservationService reservationService;
 
-    // ENDPOINT PARA ADMIN: Obtener todas las reservas de la institución
+    // --- INICIO DE LA SOLUCIÓN AL ERROR 405 ---
+    /**
+     * Endpoint para el Calendario (GET /api/v1/reservations)
+     * * El frontend (probablemente un componente de calendario) está llamando a
+     * esta
+     * ruta base (GET en la raíz) para obtener todas las reservas y pintar los
+     * horarios ocupados.
+     * * Se requiere autorización de USER o ADMIN.
+     * Devuelve todas las reservas de la institución a la que pertenece el usuario.
+     */
+    @GetMapping
+    @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('USER')")
+    public List<Reservation> getReservationsForCalendar(@AuthenticationPrincipal User user) {
+        Long institutionId = user.getInstitution().getId();
+        // Reutilizamos el servicio que ya obtiene todas las reservas de la institución
+        return reservationService.getAllReservationsByInstitution(institutionId);
+    }
+    // --- FIN DE LA SOLUCIÓN ---
+
+    // ENDPOINT PARA ADMIN: Obtener todas las reservas (GET
+    // /api/v1/reservations/all)
     @GetMapping("/all")
     @PreAuthorize("hasAuthority('ADMIN')")
     public List<Reservation> getInstitutionReservations(@AuthenticationPrincipal User user) {
@@ -29,7 +49,8 @@ public class ReservationController {
         return reservationService.getAllReservationsByInstitution(institutionId);
     }
 
-    // ENDPOINT PARA USER: Obtener solo mis reservas
+    // ENDPOINT PARA USER: Obtener solo mis reservas (GET
+    // /api/v1/reservations/my-reservations)
     @GetMapping("/my-reservations")
     @PreAuthorize("hasAuthority('USER')")
     public List<Reservation> getMyReservations(@AuthenticationPrincipal User user) {
@@ -37,50 +58,46 @@ public class ReservationController {
         return reservationService.getReservationsForUser(user.getId(), institutionId);
     }
 
-
+    // CREAR RESERVA (POST /api/v1/reservations)
     @PostMapping
-    @PreAuthorize("hasAuthority('USER')") // Solo USER puede CREAR reservas para sí mismo
-    public ResponseEntity<?> createReservation(@RequestBody Reservation reservation, @AuthenticationPrincipal User user) {
-        // Asegurarse de que la reserva se asigna al usuario autenticado
+    @PreAuthorize("hasAuthority('USER')")
+    public ResponseEntity<?> createReservation(@RequestBody Reservation reservation,
+            @AuthenticationPrincipal User user) {
         reservation.setUser(user);
-        
+
         try {
             Reservation newReservation = reservationService.createReservation(reservation);
             return ResponseEntity.status(HttpStatus.CREATED).body(newReservation);
         } catch (IllegalStateException e) {
-            // Conflicto de horario
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", e.getMessage()));
         } catch (IllegalArgumentException e) {
-            // Datos inválidos (ej. usuario/espacio no existen, horas incorrectas)
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Error interno al crear la reserva."));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Error interno al crear la reserva."));
         }
     }
 
+    // CANCELAR RESERVA (DELETE /api/v1/reservations/{id})
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('USER')") // Ambos pueden cancelar
+    @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('USER')")
     public ResponseEntity<Void> cancelReservation(@PathVariable Long id, @AuthenticationPrincipal User user) {
-        
+
         boolean cancelled;
-        
+
         try {
             if (user.getRole() == Role.ADMIN) {
-                // Admin puede cancelar cualquier reserva en su institución
                 cancelled = reservationService.cancelReservationAsAdmin(id, user.getInstitution().getId());
             } else {
-                // User solo puede cancelar sus propias reservas
                 cancelled = reservationService.cancelReservationAsUser(id, user.getId(), user.getInstitution().getId());
             }
 
             if (cancelled) {
-                return ResponseEntity.noContent().build(); // 204 OK
+                return ResponseEntity.noContent().build();
             } else {
-                // 404 Not Found (La reserva no existe o no pertenece a la institución)
                 return ResponseEntity.notFound().build();
             }
         } catch (SecurityException e) {
-             // 403 Forbidden (User intentando borrar reserva ajena)
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
     }
