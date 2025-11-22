@@ -67,8 +67,6 @@ public class ReservationService {
         return reservationRepository.findBySpaceIdAndInstitutionId(spaceId, institutionId);
     }
 
-     // --- LÓGICA DE CANCELACIÓN SEPARADA ---
-
      // Lógica para un USER (solo puede cancelar lo suyo)
      @Transactional
      public boolean cancelReservationAsUser(Long reservationId, Long userId, Long institutionId) {

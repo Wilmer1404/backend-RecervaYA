@@ -1,8 +1,7 @@
-// src/main/java/com/reservaya/reservaya_api/controller/SpaceController.java
 package com.reservaya.reservaya_api.controller;
 
-import com.reservaya.reservaya_api.dto.SpaceDTO; // <-- IMPORTAR DTO
-import com.reservaya.reservaya_api.model.Space; // Necesario para el RequestBody
+import com.reservaya.reservaya_api.dto.SpaceDTO; 
+import com.reservaya.reservaya_api.model.Space; 
 import com.reservaya.reservaya_api.model.User;
 import com.reservaya.reservaya_api.service.SpaceService;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +20,7 @@ public class SpaceController {
 
     private final SpaceService spaceService;
 
-    // --- MÉTODO MODIFICADO: Devuelve List<SpaceDTO> ---
+    // --- Devuelve todos los espacios asociados a esa institución. ---
     @GetMapping
     @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('USER')")
     public List<SpaceDTO> getAllSpaces(@AuthenticationPrincipal User user) {
@@ -29,7 +28,7 @@ public class SpaceController {
         return spaceService.getAllSpacesByInstitution(institutionId);
     }
 
-    // --- MÉTODO MODIFICADO: Devuelve ResponseEntity<SpaceDTO> ---
+    // --- obtener espacios por ID ---
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('USER')")
     public ResponseEntity<SpaceDTO> getSpaceById(@PathVariable Long id, @AuthenticationPrincipal User user) {
@@ -39,7 +38,7 @@ public class SpaceController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // --- MÉTODO MODIFICADO: Devuelve ResponseEntity<SpaceDTO> ---
+    // --- crear un spacio ---
     // Recibe Space en el body, pero devuelve SpaceDTO
     @PostMapping
     @PreAuthorize("hasAuthority('ADMIN')")
@@ -50,15 +49,13 @@ public class SpaceController {
             SpaceDTO createdSpaceDTO = spaceService.createSpace(space, institutionId);
             return ResponseEntity.status(HttpStatus.CREATED).body(createdSpaceDTO);
         } catch (IllegalArgumentException e) {
-            // Puedes personalizar el mensaje de error si quieres
             return ResponseEntity.badRequest().build();
         } catch (Exception e) {
-             // Loguear el error real aquí sería buena idea
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
-    // --- MÉTODO MODIFICADO: Devuelve ResponseEntity<SpaceDTO> ---
+    // --- Actualizar espacio ---
     // Recibe Space en el body, devuelve SpaceDTO
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('ADMIN')")
@@ -70,7 +67,7 @@ public class SpaceController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // --- (deleteSpace no necesita cambios) ---
+    // --- eliminar espacios ---
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<Void> deleteSpace(@PathVariable Long id, @AuthenticationPrincipal User adminUser) {

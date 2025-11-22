@@ -60,8 +60,8 @@ public class AuthService {
                 .name(request.getAdminName())
                 .email(request.getAdminEmail())
                 .password(passwordEncoder.encode(request.getAdminPassword()))
-                .role(Role.ADMIN) // El primer usuario registrado es ADMIN
-                .institution(savedInstitution) // <--- ASOCIAR INSTITUCIÓN
+                .role(Role.ADMIN)
+                .institution(savedInstitution)
                 .build();
 
         return userRepository.save(adminUser); // Guardar usuario
