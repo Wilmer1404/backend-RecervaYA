@@ -62,7 +62,6 @@ public class SpaceService {
     @Transactional
     public boolean deleteSpace(Long id, Long institutionId) {
         if (spaceRepository.existsByIdAndInstitutionId(id, institutionId)) {
-            // TODO: Añadir lógica para verificar reservas activas antes de borrar
             spaceRepository.deleteById(id);
             return true;
         }
