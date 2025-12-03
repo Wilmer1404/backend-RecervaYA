@@ -8,6 +8,8 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
+import java.time.LocalTime;
+
 @Entity
 @Table(name = "spaces")
 @Data
@@ -30,6 +32,12 @@ public class Space {
     private int capacity;
 
     private String image;
+
+    @Column(name = "opening_time")
+    private LocalTime openingTime;
+
+    @Column(name = "closing_time")
+    private LocalTime closingTime;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "institution_id", nullable = false)

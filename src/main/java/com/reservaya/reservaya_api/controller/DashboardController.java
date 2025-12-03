@@ -9,6 +9,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.reservaya.reservaya_api.dto.AnalyticsDTO;
 
 @RestController
 @RequestMapping("/api/v1/dashboard")
@@ -22,5 +23,11 @@ public class DashboardController {
     public DashboardSummaryDTO getSummary(@AuthenticationPrincipal User adminUser) {
         Long institutionId = adminUser.getInstitution().getId();
         return dashboardService.getDashboardSummaryForInstitution(institutionId);
+    }
+    
+    @GetMapping("/analytics")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public AnalyticsDTO getAnalytics(@AuthenticationPrincipal User adminUser) {
+        return dashboardService.getAnalytics(adminUser.getInstitution().getId());
     }
 }

@@ -1,10 +1,12 @@
-// src/main/java/com/reservaya/reservaya_api/dto/SpaceDTO.java
 package com.reservaya.reservaya_api.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalTime;
 
 @Data
 @Builder
@@ -16,7 +18,10 @@ public class SpaceDTO {
     private String type;
     private int capacity;
     private String image;
-    // No incluimos la relación Institution completa para evitar problemas
-    // Si necesitas el ID de la institución, puedes añadirlo:
     private Long institutionId;
+    @JsonFormat(pattern = "HH:mm")
+    private LocalTime openingTime;
+
+    @JsonFormat(pattern = "HH:mm")
+    private LocalTime closingTime;
 }

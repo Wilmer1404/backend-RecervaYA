@@ -1,7 +1,6 @@
-// src/main/java/com/reservaya/reservaya_api/service/SpaceService.java
 package com.reservaya.reservaya_api.service;
 
-import com.reservaya.reservaya_api.dto.SpaceDTO; // <-- IMPORTAR DTO
+import com.reservaya.reservaya_api.dto.SpaceDTO;
 import com.reservaya.reservaya_api.model.Institution;
 import com.reservaya.reservaya_api.model.Space;
 import com.reservaya.reservaya_api.repository.InstitutionRepository;
@@ -12,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors; // <-- IMPORTAR Collectors
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -21,44 +20,63 @@ public class SpaceService {
     private final SpaceRepository spaceRepository;
     private final InstitutionRepository institutionRepository;
 
-    // --- MÉTODO MODIFICADO: Devuelve List<SpaceDTO> ---
+    // --- Devuelve la lista convertida a DTOs ---
     public List<SpaceDTO> getAllSpacesByInstitution(Long institutionId) {
         return spaceRepository.findByInstitutionId(institutionId)
                 .stream()
-                .map(this::mapToSpaceDTO) // Convertir cada Space a SpaceDTO
+                .map(this::mapToSpaceDTO)
                 .collect(Collectors.toList());
     }
 
-    // --- MÉTODO MODIFICADO: Devuelve Optional<SpaceDTO> ---
+    // --- Devuelve un Optional con el DTO ---
     public Optional<SpaceDTO> getSpaceByIdAndInstitution(Long id, Long institutionId) {
         return spaceRepository.findByIdAndInstitutionId(id, institutionId)
-                .map(this::mapToSpaceDTO); // Convertir a SpaceDTO si se encuentra
+                .map(this::mapToSpaceDTO);
     }
 
-    // --- MÉTODO MODIFICADO: Devuelve SpaceDTO ---
+    // --- CREAR: Ahora recibe SpaceDTO directamente ---
     @Transactional
-    public SpaceDTO createSpace(Space space, Long institutionId) { // Recibe entidad, devuelve DTO
+    public SpaceDTO createSpace(SpaceDTO request, Long institutionId) {
         Institution institution = institutionRepository.findById(institutionId)
                 .orElseThrow(() -> new IllegalArgumentException("Institución no encontrada con ID: " + institutionId));
-        space.setInstitution(institution);
+
+        // Construimos la entidad usando los datos del DTO, incluyendo los horarios
+        Space space = Space.builder()
+                .name(request.getName())
+                .type(request.getType())
+                .capacity(request.getCapacity())
+                .image(request.getImage())
+                .institution(institution)
+                // --- CAMPOS DE HORARIO ---
+                .openingTime(request.getOpeningTime())
+                .closingTime(request.getClosingTime())
+                // -------------------------
+                .build();
+
         Space savedSpace = spaceRepository.save(space);
-        return mapToSpaceDTO(savedSpace); // Convertir a DTO antes de devolver
+        return mapToSpaceDTO(savedSpace);
     }
 
-    // --- MÉTODO MODIFICADO: Devuelve Optional<SpaceDTO> ---
+    // --- ACTUALIZAR: Ahora recibe SpaceDTO para tomar los horarios ---
     @Transactional
-    public Optional<SpaceDTO> updateSpace(Long id, Space spaceDetails, Long institutionId) {
+    public Optional<SpaceDTO> updateSpace(Long id, SpaceDTO spaceDetails, Long institutionId) {
         return spaceRepository.findByIdAndInstitutionId(id, institutionId).map(existingSpace -> {
             existingSpace.setName(spaceDetails.getName());
             existingSpace.setType(spaceDetails.getType());
             existingSpace.setCapacity(spaceDetails.getCapacity());
             existingSpace.setImage(spaceDetails.getImage());
+            
+            // --- ACTUALIZAR HORARIOS ---
+            existingSpace.setOpeningTime(spaceDetails.getOpeningTime());
+            existingSpace.setClosingTime(spaceDetails.getClosingTime());
+            // ---------------------------
+
             Space updatedSpace = spaceRepository.save(existingSpace);
-            return mapToSpaceDTO(updatedSpace); // Convertir a DTO
+            return mapToSpaceDTO(updatedSpace);
         });
     }
 
-    // --- (deleteSpace no devuelve datos, no necesita DTO) ---
+    // --- ELIMINAR ---
     @Transactional
     public boolean deleteSpace(Long id, Long institutionId) {
         if (spaceRepository.existsByIdAndInstitutionId(id, institutionId)) {
@@ -68,7 +86,7 @@ public class SpaceService {
         return false;
     }
 
-    // --- NUEVO MÉTODO HELPER: Para convertir Entidad a DTO ---
+    // --- MAPPER: Convierte de Entidad a DTO ---
     private SpaceDTO mapToSpaceDTO(Space space) {
         return SpaceDTO.builder()
                 .id(space.getId())
@@ -76,8 +94,11 @@ public class SpaceService {
                 .type(space.getType())
                 .capacity(space.getCapacity())
                 .image(space.getImage())
-                // Si añadiste institutionId al DTO:
                 .institutionId(space.getInstitution() != null ? space.getInstitution().getId() : null)
+                // --- INCLUIR HORARIOS EN LA RESPUESTA ---
+                .openingTime(space.getOpeningTime())
+                .closingTime(space.getClosingTime())
+                // ----------------------------------------
                 .build();
     }
 }

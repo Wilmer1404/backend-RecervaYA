@@ -1,7 +1,6 @@
 package com.reservaya.reservaya_api.controller;
 
 import com.reservaya.reservaya_api.dto.SpaceDTO; 
-import com.reservaya.reservaya_api.model.Space; 
 import com.reservaya.reservaya_api.model.User;
 import com.reservaya.reservaya_api.service.SpaceService;
 import lombok.RequiredArgsConstructor;
@@ -34,36 +33,38 @@ public class SpaceController {
     public ResponseEntity<SpaceDTO> getSpaceById(@PathVariable Long id, @AuthenticationPrincipal User user) {
         Long institutionId = user.getInstitution().getId();
         return spaceService.getSpaceByIdAndInstitution(id, institutionId)
-                .map(ResponseEntity::ok) // Devuelve el DTO si existe
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // --- crear un spacio ---
-    // Recibe Space en el body, pero devuelve SpaceDTO
+    // --- crear un espacio ---
+    // CORREGIDO: Recibe SpaceDTO en el body
     @PostMapping
     @PreAuthorize("hasAuthority('ADMIN')")
-    public ResponseEntity<SpaceDTO> createSpace(@RequestBody Space space, @AuthenticationPrincipal User adminUser) {
+    public ResponseEntity<SpaceDTO> createSpace(@RequestBody SpaceDTO spaceDTO, @AuthenticationPrincipal User adminUser) {
         Long institutionId = adminUser.getInstitution().getId();
         try {
-            // El servicio ahora devuelve DTO
-            SpaceDTO createdSpaceDTO = spaceService.createSpace(space, institutionId);
+            // Pasamos el DTO directamente al servicio
+            SpaceDTO createdSpaceDTO = spaceService.createSpace(spaceDTO, institutionId);
             return ResponseEntity.status(HttpStatus.CREATED).body(createdSpaceDTO);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
         } catch (Exception e) {
+            e.printStackTrace(); // Es útil imprimir el error en consola para depurar
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
     // --- Actualizar espacio ---
-    // Recibe Space en el body, devuelve SpaceDTO
+    // CORREGIDO: Recibe SpaceDTO en el body
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('ADMIN')")
-    public ResponseEntity<SpaceDTO> updateSpace(@PathVariable Long id, @RequestBody Space spaceDetails, @AuthenticationPrincipal User adminUser) {
+    public ResponseEntity<SpaceDTO> updateSpace(@PathVariable Long id, @RequestBody SpaceDTO spaceDetailsDTO, @AuthenticationPrincipal User adminUser) {
         Long institutionId = adminUser.getInstitution().getId();
-        // El servicio ahora devuelve Optional<SpaceDTO>
-        return spaceService.updateSpace(id, spaceDetails, institutionId)
-                .map(ResponseEntity::ok) // Devuelve el DTO si se actualizó
+        
+        // Pasamos el DTO directamente al servicio
+        return spaceService.updateSpace(id, spaceDetailsDTO, institutionId)
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
