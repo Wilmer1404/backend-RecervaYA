@@ -1,10 +1,8 @@
-// src/main/java/com/reservaya/reservaya_api/service/ReservationService.java
 package com.reservaya.reservaya_api.service;
 
 import com.reservaya.reservaya_api.model.Reservation;
 import com.reservaya.reservaya_api.model.Space;
 import com.reservaya.reservaya_api.model.User;
-import com.reservaya.reservaya_api.model.enums.Role; // Importar Role
 import com.reservaya.reservaya_api.repository.ReservationRepository;
 import com.reservaya.reservaya_api.repository.SpaceRepository;
 import com.reservaya.reservaya_api.repository.UserRepository;
@@ -24,25 +22,37 @@ public class ReservationService {
     private final SpaceRepository spaceRepository;
 
     @Transactional
-    public Reservation createReservation(Reservation reservation) {
-        User user = userRepository.findById(reservation.getUser().getId())
-                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con ID: " + reservation.getUser().getId()));
+    // --- MEJORA: Recibir User como parámetro ---
+    public Reservation createReservation(Reservation reservation, User user) {
+        
+        // 1. Asignar el usuario que viene del controlador (autenticado)
+        reservation.setUser(user);
+
+        // 2. Validar que el objeto reservation tenga un espacio con ID
+        if (reservation.getSpace() == null || reservation.getSpace().getId() == null) {
+             throw new IllegalArgumentException("Debe especificar un espacio válido.");
+        }
+
+        // 3. Buscar el espacio en BD
         Space space = spaceRepository.findById(reservation.getSpace().getId())
                 .orElseThrow(() -> new IllegalArgumentException("Espacio no encontrado con ID: " + reservation.getSpace().getId()));
+        
+        reservation.setSpace(space); // Asignar el objeto completo
 
+        // 4. Validar que pertenezcan a la misma institución
         if (!user.getInstitution().getId().equals(space.getInstitution().getId())) {
              throw new IllegalArgumentException("El usuario y el espacio no pertenecen a la misma institución.");
         }
-
-        Long institutionId = user.getInstitution().getId();
         reservation.setInstitution(user.getInstitution());
 
+        // 5. Validar lógica de horas
         if (reservation.getStartTime() == null || reservation.getEndTime() == null || !reservation.getStartTime().isBefore(reservation.getEndTime())) {
              throw new IllegalArgumentException("La hora de inicio debe ser anterior a la hora de fin.");
         }
 
+        // 6. Validar si ya está ocupado (Solapamiento)
         List<Reservation> overlapping = reservationRepository.findOverlappingReservations(
-                institutionId,
+                user.getInstitution().getId(),
                 space.getId(),
                 reservation.getStartTime(),
                 reservation.getEndTime());
@@ -67,37 +77,28 @@ public class ReservationService {
         return reservationRepository.findBySpaceIdAndInstitutionId(spaceId, institutionId);
     }
 
-     // Lógica para un USER (solo puede cancelar lo suyo)
      @Transactional
      public boolean cancelReservationAsUser(Long reservationId, Long userId, Long institutionId) {
          Optional<Reservation> reservationOpt = reservationRepository.findByIdAndInstitutionId(reservationId, institutionId);
-
-         if (reservationOpt.isEmpty()) {
-             return false; // No encontrada o no pertenece a la institución
-         }
-
+         if (reservationOpt.isEmpty()) return false;
+         
          Reservation reservation = reservationOpt.get();
-
          if (!reservation.getUser().getId().equals(userId)) {
-             // El usuario intenta cancelar una reserva que no es suya
              throw new SecurityException("No tiene permisos para cancelar esta reserva.");
          }
          
-         // Si es suya, cancelar
          reservation.setStatus("CANCELLED");
          reservationRepository.save(reservation);
          return true;
      }
 
-     // Lógica para un ADMIN (puede cancelar cualquier reserva en su institución)
      @Transactional
      public boolean cancelReservationAsAdmin(Long reservationId, Long institutionId) {
-        // Solo busca que exista en la institución
          return reservationRepository.findByIdAndInstitutionId(reservationId, institutionId)
              .map(reservation -> {
                  reservation.setStatus("CANCELLED");
                  reservationRepository.save(reservation);
                  return true;
-             }).orElse(false); // No se encontró la reserva en esa institución
+             }).orElse(false);
      }
 }
