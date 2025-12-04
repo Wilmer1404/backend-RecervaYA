@@ -1,5 +1,6 @@
 package com.reservaya.reservaya_api.controller;
 
+import com.reservaya.reservaya_api.dto.ReservationResponse; // Importar DTO
 import com.reservaya.reservaya_api.model.Reservation;
 import com.reservaya.reservaya_api.model.User;
 import com.reservaya.reservaya_api.model.enums.Role;
@@ -21,36 +22,39 @@ public class ReservationController {
 
     private final ReservationService reservationService;
 
+    // Actualizado: Devuelve DTO
     @GetMapping
     @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('USER')")
-    public List<Reservation> getReservationsForCalendar(@AuthenticationPrincipal User user) {
+    public List<ReservationResponse> getReservationsForCalendar(@AuthenticationPrincipal User user) {
         Long institutionId = user.getInstitution().getId();
         return reservationService.getAllReservationsByInstitution(institutionId);
     }
 
+    // Actualizado: Devuelve DTO
     @GetMapping("/all")
     @PreAuthorize("hasAuthority('ADMIN')")
-    public List<Reservation> getInstitutionReservations(@AuthenticationPrincipal User user) {
+    public List<ReservationResponse> getInstitutionReservations(@AuthenticationPrincipal User user) {
         Long institutionId = user.getInstitution().getId();
         return reservationService.getAllReservationsByInstitution(institutionId);
     }
 
+    // Actualizado: Devuelve DTO
     @GetMapping("/my-reservations")
     @PreAuthorize("hasAuthority('USER')")
-    public List<Reservation> getMyReservations(@AuthenticationPrincipal User user) {
+    public List<ReservationResponse> getMyReservations(@AuthenticationPrincipal User user) {
         Long institutionId = user.getInstitution().getId();
         return reservationService.getReservationsForUser(user.getId(), institutionId);
     }
 
-    // --- MEJORA: Pasar 'user' al servicio ---
     @PostMapping
     @PreAuthorize("hasAuthority('ADMIN') or hasAuthority('USER')")
     public ResponseEntity<?> createReservation(@RequestBody Reservation reservation,
-            @AuthenticationPrincipal User user) {
+                                               @AuthenticationPrincipal User user) {
         try {
-            // Pasamos 'user' aquí para que el servicio no falle
             Reservation newReservation = reservationService.createReservation(reservation, user);
-            return ResponseEntity.status(HttpStatus.CREATED).body(newReservation);
+            // Devolvemos Map simple para evitar problemas de serialización
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(Map.of("message", "Reserva creada", "id", newReservation.getId()));
         } catch (IllegalStateException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", e.getMessage()));
         } catch (IllegalArgumentException e) {

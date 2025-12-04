@@ -1,5 +1,6 @@
 package com.reservaya.reservaya_api.service;
 
+import com.reservaya.reservaya_api.dto.ReservationResponse;
 import com.reservaya.reservaya_api.model.Reservation;
 import com.reservaya.reservaya_api.model.Space;
 import com.reservaya.reservaya_api.model.User;
@@ -12,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -22,35 +24,27 @@ public class ReservationService {
     private final SpaceRepository spaceRepository;
 
     @Transactional
-    // --- MEJORA: Recibir User como parámetro ---
     public Reservation createReservation(Reservation reservation, User user) {
-        
-        // 1. Asignar el usuario que viene del controlador (autenticado)
         reservation.setUser(user);
 
-        // 2. Validar que el objeto reservation tenga un espacio con ID
         if (reservation.getSpace() == null || reservation.getSpace().getId() == null) {
              throw new IllegalArgumentException("Debe especificar un espacio válido.");
         }
 
-        // 3. Buscar el espacio en BD
         Space space = spaceRepository.findById(reservation.getSpace().getId())
                 .orElseThrow(() -> new IllegalArgumentException("Espacio no encontrado con ID: " + reservation.getSpace().getId()));
         
-        reservation.setSpace(space); // Asignar el objeto completo
+        reservation.setSpace(space);
 
-        // 4. Validar que pertenezcan a la misma institución
         if (!user.getInstitution().getId().equals(space.getInstitution().getId())) {
              throw new IllegalArgumentException("El usuario y el espacio no pertenecen a la misma institución.");
         }
         reservation.setInstitution(user.getInstitution());
 
-        // 5. Validar lógica de horas
         if (reservation.getStartTime() == null || reservation.getEndTime() == null || !reservation.getStartTime().isBefore(reservation.getEndTime())) {
              throw new IllegalArgumentException("La hora de inicio debe ser anterior a la hora de fin.");
         }
 
-        // 6. Validar si ya está ocupado (Solapamiento)
         List<Reservation> overlapping = reservationRepository.findOverlappingReservations(
                 user.getInstitution().getId(),
                 space.getId(),
@@ -65,20 +59,46 @@ public class ReservationService {
         return reservationRepository.save(reservation);
     }
 
-    public List<Reservation> getAllReservationsByInstitution(Long institutionId) {
-        return reservationRepository.findByInstitutionId(institutionId);
+    // --- MÉTODOS ACTUALIZADOS PARA DEVOLVER DTO ---
+
+    public List<ReservationResponse> getAllReservationsByInstitution(Long institutionId) {
+        return reservationRepository.findByInstitutionId(institutionId)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
-    public List<Reservation> getReservationsForUser(Long userId, Long institutionId) {
-        return reservationRepository.findByUserIdAndInstitutionId(userId, institutionId);
+    public List<ReservationResponse> getReservationsForUser(Long userId, Long institutionId) {
+        return reservationRepository.findByUserIdAndInstitutionId(userId, institutionId)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
-    public List<Reservation> getReservationsForSpace(Long spaceId, Long institutionId) {
-        return reservationRepository.findBySpaceIdAndInstitutionId(spaceId, institutionId);
+    // Mapper auxiliar
+    private ReservationResponse mapToResponse(Reservation r) {
+        return ReservationResponse.builder()
+                .id(r.getId())
+                .startTime(r.getStartTime())
+                .endTime(r.getEndTime())
+                .status(r.getStatus())
+                .space(ReservationResponse.SpaceSummary.builder()
+                        .id(r.getSpace().getId())
+                        .name(r.getSpace().getName())
+                        .type(r.getSpace().getType())
+                        .build())
+                .user(ReservationResponse.UserSummary.builder()
+                        .id(r.getUser().getId())
+                        .name(r.getUser().getName())
+                        .email(r.getUser().getEmail())
+                        .build())
+                .build();
     }
 
-     @Transactional
-     public boolean cancelReservationAsUser(Long reservationId, Long userId, Long institutionId) {
+    // ------------------------------------------------
+
+    @Transactional
+    public boolean cancelReservationAsUser(Long reservationId, Long userId, Long institutionId) {
          Optional<Reservation> reservationOpt = reservationRepository.findByIdAndInstitutionId(reservationId, institutionId);
          if (reservationOpt.isEmpty()) return false;
          
@@ -90,15 +110,15 @@ public class ReservationService {
          reservation.setStatus("CANCELLED");
          reservationRepository.save(reservation);
          return true;
-     }
+    }
 
-     @Transactional
-     public boolean cancelReservationAsAdmin(Long reservationId, Long institutionId) {
+    @Transactional
+    public boolean cancelReservationAsAdmin(Long reservationId, Long institutionId) {
          return reservationRepository.findByIdAndInstitutionId(reservationId, institutionId)
              .map(reservation -> {
                  reservation.setStatus("CANCELLED");
                  reservationRepository.save(reservation);
                  return true;
              }).orElse(false);
-     }
+    }
 }
