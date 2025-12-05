@@ -29,10 +29,11 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     List<Reservation> findBySpaceIdAndInstitutionId(Long spaceId, Long institutionId);
     
-    // Encontrar una reserva por su ID y el ID de su institución
     Optional<Reservation> findByIdAndInstitutionId(Long id, Long institutionId);
 
-    // --- NUEVO MÉTODO PARA ANALÍTICAS (Reportes) ---
     @Query("SELECT s.type, COUNT(r) FROM Reservation r JOIN r.space s WHERE r.institution.id = :institutionId GROUP BY s.type")
     List<Object[]> countReservationsByType(@Param("institutionId") Long institutionId);
+
+    // --- NUEVO MÉTODO CRÍTICO: Eliminar reservas por ID de espacio ---
+    void deleteBySpaceId(Long spaceId);
 }

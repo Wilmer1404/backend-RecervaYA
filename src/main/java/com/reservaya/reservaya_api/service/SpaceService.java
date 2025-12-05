@@ -4,6 +4,7 @@ import com.reservaya.reservaya_api.dto.SpaceDTO;
 import com.reservaya.reservaya_api.model.Institution;
 import com.reservaya.reservaya_api.model.Space;
 import com.reservaya.reservaya_api.repository.InstitutionRepository;
+import com.reservaya.reservaya_api.repository.ReservationRepository; // Importar
 import com.reservaya.reservaya_api.repository.SpaceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,8 +20,8 @@ public class SpaceService {
 
     private final SpaceRepository spaceRepository;
     private final InstitutionRepository institutionRepository;
+    private final ReservationRepository reservationRepository; // Inyectar repositorio de reservas
 
-    // --- Devuelve la lista convertida a DTOs ---
     public List<SpaceDTO> getAllSpacesByInstitution(Long institutionId) {
         return spaceRepository.findByInstitutionId(institutionId)
                 .stream()
@@ -28,36 +29,30 @@ public class SpaceService {
                 .collect(Collectors.toList());
     }
 
-    // --- Devuelve un Optional con el DTO ---
     public Optional<SpaceDTO> getSpaceByIdAndInstitution(Long id, Long institutionId) {
         return spaceRepository.findByIdAndInstitutionId(id, institutionId)
                 .map(this::mapToSpaceDTO);
     }
 
-    // --- CREAR: Ahora recibe SpaceDTO directamente ---
     @Transactional
     public SpaceDTO createSpace(SpaceDTO request, Long institutionId) {
         Institution institution = institutionRepository.findById(institutionId)
                 .orElseThrow(() -> new IllegalArgumentException("Institución no encontrada con ID: " + institutionId));
 
-        // Construimos la entidad usando los datos del DTO, incluyendo los horarios
         Space space = Space.builder()
                 .name(request.getName())
                 .type(request.getType())
                 .capacity(request.getCapacity())
                 .image(request.getImage())
                 .institution(institution)
-                // --- CAMPOS DE HORARIO ---
                 .openingTime(request.getOpeningTime())
                 .closingTime(request.getClosingTime())
-                // -------------------------
                 .build();
 
         Space savedSpace = spaceRepository.save(space);
         return mapToSpaceDTO(savedSpace);
     }
 
-    // --- ACTUALIZAR: Ahora recibe SpaceDTO para tomar los horarios ---
     @Transactional
     public Optional<SpaceDTO> updateSpace(Long id, SpaceDTO spaceDetails, Long institutionId) {
         return spaceRepository.findByIdAndInstitutionId(id, institutionId).map(existingSpace -> {
@@ -65,28 +60,29 @@ public class SpaceService {
             existingSpace.setType(spaceDetails.getType());
             existingSpace.setCapacity(spaceDetails.getCapacity());
             existingSpace.setImage(spaceDetails.getImage());
-            
-            // --- ACTUALIZAR HORARIOS ---
             existingSpace.setOpeningTime(spaceDetails.getOpeningTime());
             existingSpace.setClosingTime(spaceDetails.getClosingTime());
-            // ---------------------------
 
             Space updatedSpace = spaceRepository.save(existingSpace);
             return mapToSpaceDTO(updatedSpace);
         });
     }
 
-    // --- ELIMINAR ---
+    // --- CORRECCIÓN: Eliminar primero las reservas, luego el espacio ---
     @Transactional
     public boolean deleteSpace(Long id, Long institutionId) {
         if (spaceRepository.existsByIdAndInstitutionId(id, institutionId)) {
+            // 1. Eliminar todas las reservas asociadas a este espacio
+            // Esto evita el error de violación de Foreign Key (Integridad Referencial)
+            reservationRepository.deleteBySpaceId(id);
+            
+            // 2. Ahora sí, eliminar el espacio
             spaceRepository.deleteById(id);
             return true;
         }
         return false;
     }
 
-    // --- MAPPER: Convierte de Entidad a DTO ---
     private SpaceDTO mapToSpaceDTO(Space space) {
         return SpaceDTO.builder()
                 .id(space.getId())
@@ -95,10 +91,8 @@ public class SpaceService {
                 .capacity(space.getCapacity())
                 .image(space.getImage())
                 .institutionId(space.getInstitution() != null ? space.getInstitution().getId() : null)
-                // --- INCLUIR HORARIOS EN LA RESPUESTA ---
                 .openingTime(space.getOpeningTime())
                 .closingTime(space.getClosingTime())
-                // ----------------------------------------
                 .build();
     }
 }

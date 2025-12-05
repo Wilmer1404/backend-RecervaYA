@@ -1,6 +1,6 @@
 package com.reservaya.reservaya_api.service;
 
-import com.reservaya.reservaya_api.dto.ReservationResponse;
+import com.reservaya.reservaya_api.dto.ReservationResponse; // Asegúrate de importar el DTO
 import com.reservaya.reservaya_api.model.Reservation;
 import com.reservaya.reservaya_api.model.Space;
 import com.reservaya.reservaya_api.model.User;
@@ -25,26 +25,32 @@ public class ReservationService {
 
     @Transactional
     public Reservation createReservation(Reservation reservation, User user) {
+        // 1. Asignar el usuario autenticado
         reservation.setUser(user);
 
+        // 2. Validar que la reserva tenga un espacio
         if (reservation.getSpace() == null || reservation.getSpace().getId() == null) {
              throw new IllegalArgumentException("Debe especificar un espacio válido.");
         }
 
+        // 3. Buscar el espacio completo en BD
         Space space = spaceRepository.findById(reservation.getSpace().getId())
                 .orElseThrow(() -> new IllegalArgumentException("Espacio no encontrado con ID: " + reservation.getSpace().getId()));
         
         reservation.setSpace(space);
 
+        // 4. Validar institución
         if (!user.getInstitution().getId().equals(space.getInstitution().getId())) {
              throw new IllegalArgumentException("El usuario y el espacio no pertenecen a la misma institución.");
         }
         reservation.setInstitution(user.getInstitution());
 
+        // 5. Validar fechas
         if (reservation.getStartTime() == null || reservation.getEndTime() == null || !reservation.getStartTime().isBefore(reservation.getEndTime())) {
              throw new IllegalArgumentException("La hora de inicio debe ser anterior a la hora de fin.");
         }
 
+        // 6. Validar solapamiento
         List<Reservation> overlapping = reservationRepository.findOverlappingReservations(
                 user.getInstitution().getId(),
                 space.getId(),
@@ -59,8 +65,10 @@ public class ReservationService {
         return reservationRepository.save(reservation);
     }
 
-    // --- MÉTODOS ACTUALIZADOS PARA DEVOLVER DTO ---
-
+    // --- CORRECCIÓN CRÍTICA: @Transactional(readOnly = true) ---
+    // Esto mantiene la sesión abierta para leer los datos Lazy (User y Space) al convertir al DTO
+    
+    @Transactional(readOnly = true)
     public List<ReservationResponse> getAllReservationsByInstitution(Long institutionId) {
         return reservationRepository.findByInstitutionId(institutionId)
                 .stream()
@@ -68,6 +76,7 @@ public class ReservationService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<ReservationResponse> getReservationsForUser(Long userId, Long institutionId) {
         return reservationRepository.findByUserIdAndInstitutionId(userId, institutionId)
                 .stream()
@@ -75,13 +84,14 @@ public class ReservationService {
                 .collect(Collectors.toList());
     }
 
-    // Mapper auxiliar
+    // Mapper auxiliar para convertir Entidad -> DTO
     private ReservationResponse mapToResponse(Reservation r) {
         return ReservationResponse.builder()
                 .id(r.getId())
                 .startTime(r.getStartTime())
                 .endTime(r.getEndTime())
                 .status(r.getStatus())
+                // Mapeamos los objetos anidados de forma segura
                 .space(ReservationResponse.SpaceSummary.builder()
                         .id(r.getSpace().getId())
                         .name(r.getSpace().getName())
