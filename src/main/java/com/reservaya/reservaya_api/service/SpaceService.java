@@ -20,7 +20,7 @@ public class SpaceService {
 
     private final SpaceRepository spaceRepository;
     private final InstitutionRepository institutionRepository;
-    private final ReservationRepository reservationRepository; // Inyectar repositorio de reservas
+    private final ReservationRepository reservationRepository; 
 
     public List<SpaceDTO> getAllSpacesByInstitution(Long institutionId) {
         return spaceRepository.findByInstitutionId(institutionId)
@@ -68,15 +68,11 @@ public class SpaceService {
         });
     }
 
-    // --- CORRECCIÓN: Eliminar primero las reservas, luego el espacio ---
     @Transactional
     public boolean deleteSpace(Long id, Long institutionId) {
         if (spaceRepository.existsByIdAndInstitutionId(id, institutionId)) {
-            // 1. Eliminar todas las reservas asociadas a este espacio
-            // Esto evita el error de violación de Foreign Key (Integridad Referencial)
             reservationRepository.deleteBySpaceId(id);
             
-            // 2. Ahora sí, eliminar el espacio
             spaceRepository.deleteById(id);
             return true;
         }

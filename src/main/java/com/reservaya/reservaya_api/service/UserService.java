@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import com.reservaya.reservaya_api.repository.ReservationRepository;
 
 import java.util.List;
 import java.util.Optional;
@@ -24,9 +25,9 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final InstitutionRepository institutionRepository;
+    private final ReservationRepository reservationRepository;
     private final PasswordEncoder passwordEncoder;
 
-    // --- MÉTODOS EXISTENTES ---
 
     public List<UserDTO> getAllUsersByInstitution(Long institutionId) {
         return userRepository.findByInstitutionId(institutionId)
@@ -56,10 +57,8 @@ public class UserService {
         return mapToUserDTO(savedUser);
     }
     
-    // --- NUEVO MÉTODO: Cambiar contraseña propia ---
     @Transactional
     public void changeUserPassword(Long userId, String oldPassword, String newPassword) {
-        // (Opcional) Validación de fortaleza de la nueva contraseña
         if (!isPasswordStrong(newPassword)) {
             throw new IllegalArgumentException("La nueva contraseña no es lo suficientemente fuerte. Debe tener al menos 8 caracteres, incluir mayúsculas, minúsculas y números.");
         }
@@ -67,17 +66,14 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado.")); // No debería pasar si está autenticado
 
-        // Verificar la contraseña antigua
         if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
             throw new IllegalArgumentException("La contraseña antigua es incorrecta.");
         }
 
-        // Codificar y guardar la nueva contraseña
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
     }
     
-    // (Helper opcional para validación de contraseña)
     private boolean isPasswordStrong(String password) {
         if (password == null || password.length() < 8) {
             return false;
@@ -125,11 +121,12 @@ public class UserService {
                  System.err.println("Intento de borrar a un usuario ADMIN (ID: " + userIdToDelete + ") - Operación denegada.");
                  return false;
             }
+            reservationRepository.deleteByUserId(userIdToDelete);
+
             userRepository.deleteById(userIdToDelete);
             System.out.println("User ID " + userIdToDelete + " deleted successfully.");
             return true;
         } else {
-             System.err.println("User ID " + userIdToDelete + " not found or does not belong to institution ID " + adminInstitutionId);
             return false;
         }
     }

@@ -10,7 +10,6 @@ import java.time.LocalDateTime;
 public class ReservationResponse {
     private Long id;
 
-    // IMPORTANTE: Forzamos el formato ISO para que Angular lo entienda
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime startTime;
 

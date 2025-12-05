@@ -24,11 +24,11 @@ public class DashboardService {
     private final ReservationRepository reservationRepository;
 
     public DashboardSummaryDTO getDashboardSummaryForInstitution(Long institutionId) {
-        long activeSpaces = spaceRepository.countByInstitutionId(institutionId); // Necesitamos añadir este método al repo
-        long totalUsers = userRepository.countByInstitutionId(institutionId); // Necesitamos añadir este método al repo
+        long activeSpaces = spaceRepository.countByInstitutionId(institutionId); 
+        long totalUsers = userRepository.countByInstitutionId(institutionId); 
         LocalDate today = LocalDate.now();
         long reservationsToday = reservationRepository.countByInstitutionIdAndStartTimeBetween(
-            institutionId, // Pasar institutionId
+            institutionId, 
             today.atStartOfDay(),
             today.atTime(LocalTime.MAX)
         );
@@ -60,7 +60,7 @@ public class DashboardService {
         }
 
         long totalReservationsWeek = weeklyCounts.stream().mapToLong(Long::longValue).sum();
-        double occupancy = totalReservationsWeek > 0 ? 78.5 : 0.0; // Lógica real requiere calcular horas totales disponibles
+        double occupancy = totalReservationsWeek > 0 ? 78.5 : 0.0; 
 
         return AnalyticsDTO.builder()
                 .weeklyReservations(weeklyCounts)

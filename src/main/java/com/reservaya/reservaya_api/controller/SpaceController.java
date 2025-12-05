@@ -38,31 +38,27 @@ public class SpaceController {
     }
 
     // --- crear un espacio ---
-    // CORREGIDO: Recibe SpaceDTO en el body
     @PostMapping
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<SpaceDTO> createSpace(@RequestBody SpaceDTO spaceDTO, @AuthenticationPrincipal User adminUser) {
         Long institutionId = adminUser.getInstitution().getId();
         try {
-            // Pasamos el DTO directamente al servicio
             SpaceDTO createdSpaceDTO = spaceService.createSpace(spaceDTO, institutionId);
             return ResponseEntity.status(HttpStatus.CREATED).body(createdSpaceDTO);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
         } catch (Exception e) {
-            e.printStackTrace(); // Es útil imprimir el error en consola para depurar
+            e.printStackTrace(); 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
     // --- Actualizar espacio ---
-    // CORREGIDO: Recibe SpaceDTO en el body
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<SpaceDTO> updateSpace(@PathVariable Long id, @RequestBody SpaceDTO spaceDetailsDTO, @AuthenticationPrincipal User adminUser) {
         Long institutionId = adminUser.getInstitution().getId();
         
-        // Pasamos el DTO directamente al servicio
         return spaceService.updateSpace(id, spaceDetailsDTO, institutionId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());

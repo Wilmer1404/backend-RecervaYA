@@ -14,7 +14,6 @@ public class GlobalExceptionHandler {
   public ResponseEntity<Map<String, String>> handleBadCredentialsException(
     BadCredentialsException ex
   ) {
-    // Devuelve un 401 Unauthorized claro con un mensaje útil
     return ResponseEntity
       .status(HttpStatus.UNAUTHORIZED)
       .body(
@@ -29,9 +28,8 @@ public class GlobalExceptionHandler {
   public ResponseEntity<Map<String, String>> handleIllegalStateException(
     IllegalStateException ex
   ) {
-    // Esto manejará el error de "Email ya registrado" y otros
     return ResponseEntity
-      .status(HttpStatus.CONFLICT) // 409 Conflict
+      .status(HttpStatus.CONFLICT) 
       .body(Map.of("message", ex.getMessage()));
   }
 }

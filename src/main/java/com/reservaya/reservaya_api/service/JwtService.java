@@ -24,23 +24,19 @@ public class JwtService {
     @Value("${security.jwt.expiration-time}")
     private long jwtExpiration;
 
-    // --- Métodos de Extracción ---
 
     public String extractUsername(String token) {
-        return extractClaim(token, Claims::getSubject); // El subject es el email (username)
+        return extractClaim(token, Claims::getSubject); 
     }
 
-    // NUEVO: Extraer institutionId
     public Long extractInstitutionId(String token) {
         return extractClaim(token, claims -> claims.get("institutionId", Long.class));
     }
 
-    // NUEVO: Extraer userId
     public Long extractUserId(String token) {
          return extractClaim(token, claims -> claims.get("userId", Long.class));
     }
 
-    // NUEVO: Extraer rol
     public String extractRole(String token) {
         return extractClaim(token, claims -> claims.get("role", String.class));
     }
@@ -59,14 +55,11 @@ public class JwtService {
                 .getBody();
     }
 
-    // --- Métodos de Generación ---
-
     public String generateToken(UserDetails userDetails) {
 
         return generateToken(new HashMap<>(), userDetails);
     }
 
-    // Este método ya acepta extraClaims, así que está listo para usarse desde AuthService
     public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
         return buildToken(extraClaims, userDetails, jwtExpiration);
     }
@@ -78,8 +71,8 @@ public class JwtService {
     ) {
         return Jwts
                 .builder()
-                .setClaims(extraClaims) // Incluir los claims personalizados
-                .setSubject(userDetails.getUsername()) // Email del usuario
+                .setClaims(extraClaims) 
+                .setSubject(userDetails.getUsername()) 
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSignInKey(), SignatureAlgorithm.HS256)

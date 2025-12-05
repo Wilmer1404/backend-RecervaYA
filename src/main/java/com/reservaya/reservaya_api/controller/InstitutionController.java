@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+
+//cuando un administrador entra a la configuración, solo vea y modifique los datos de la institución 
 @RestController
 @RequestMapping("/api/v1/institution")
 @RequiredArgsConstructor

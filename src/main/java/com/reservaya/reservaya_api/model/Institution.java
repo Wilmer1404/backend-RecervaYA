@@ -33,14 +33,11 @@ public class Institution {
     @Column(unique = true)
     private String emailDomain;
 
-    // --- CAMPOS NUEVOS AÑADIDOS PARA CONFIGURACIÓN ---
     private String contactEmail;
     private String phone;
     private String website;
     private String address;
-    // --------------------------------------------------
 
-    // --- Relaciones bidireccionales ---
     @OneToMany(mappedBy = "institution", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -59,7 +56,6 @@ public class Institution {
     @JsonIgnore
     private List<Reservation> reservations;
 
-    // --- GETTER EXPLÍCITO AÑADIDO (Mantener si es necesario) ---
     public Long getId() {
         return id;
     }

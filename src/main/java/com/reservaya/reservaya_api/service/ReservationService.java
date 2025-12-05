@@ -1,6 +1,6 @@
 package com.reservaya.reservaya_api.service;
 
-import com.reservaya.reservaya_api.dto.ReservationResponse; // Asegúrate de importar el DTO
+import com.reservaya.reservaya_api.dto.ReservationResponse; 
 import com.reservaya.reservaya_api.model.Reservation;
 import com.reservaya.reservaya_api.model.Space;
 import com.reservaya.reservaya_api.model.User;
@@ -64,9 +64,6 @@ public class ReservationService {
         reservation.setStatus("CONFIRMED");
         return reservationRepository.save(reservation);
     }
-
-    // --- CORRECCIÓN CRÍTICA: @Transactional(readOnly = true) ---
-    // Esto mantiene la sesión abierta para leer los datos Lazy (User y Space) al convertir al DTO
     
     @Transactional(readOnly = true)
     public List<ReservationResponse> getAllReservationsByInstitution(Long institutionId) {
@@ -84,14 +81,12 @@ public class ReservationService {
                 .collect(Collectors.toList());
     }
 
-    // Mapper auxiliar para convertir Entidad -> DTO
     private ReservationResponse mapToResponse(Reservation r) {
         return ReservationResponse.builder()
                 .id(r.getId())
                 .startTime(r.getStartTime())
                 .endTime(r.getEndTime())
                 .status(r.getStatus())
-                // Mapeamos los objetos anidados de forma segura
                 .space(ReservationResponse.SpaceSummary.builder()
                         .id(r.getSpace().getId())
                         .name(r.getSpace().getName())
@@ -105,7 +100,6 @@ public class ReservationService {
                 .build();
     }
 
-    // ------------------------------------------------
 
     @Transactional
     public boolean cancelReservationAsUser(Long reservationId, Long userId, Long institutionId) {

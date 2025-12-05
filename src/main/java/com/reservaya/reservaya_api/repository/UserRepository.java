@@ -17,5 +17,4 @@ public interface UserRepository extends JpaRepository<User, Long> {
     long countByInstitutionId(Long institutionId);
 
 
-    // Optional<User> findByIdAndInstitutionId(Long id, Long institutionId);
 }
